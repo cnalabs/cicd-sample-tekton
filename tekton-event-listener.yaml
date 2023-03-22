@@ -1,0 +1,65 @@
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: cicd-sample-trigger-binding
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.url)
+    - name: git-revision
+      value: $(body.repository.revision)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: cicd-sample-trigger-template
+spec:
+  params:
+    - name: git-revision
+      description: Git Revision
+      default: "main"
+    - name: git-url
+      description: Git Repository URL
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: cicd-sample-pipeline-run-
+      spec:
+        serviceAccountName: cicd-sample-task-sa
+        pipelineRef:
+          name: cicd-sample-pipeline
+        params:
+          - name: git-url
+            value: "$(tt.params.git-url)"
+          - name: git-revision
+            value: "$(tt.params.git-revision)"
+        workspaces:
+          - name: git-creds
+            secret:
+              secretName: git-auth-secret
+          - name: shared-data
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+        podTemplate:
+          securityContext:
+            fsGroup: 65532
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: cicd-sample-trigger-eventlistner
+spec:
+  serviceAccountName: cicd-sample-trigger-sa
+  triggers:
+    - bindings:
+        - ref: cicd-sample-trigger-binding
+      template:
+        ref: cicd-sample-trigger-template
+---

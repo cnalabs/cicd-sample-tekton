@@ -1,0 +1,68 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cicd-sample-task-helm-bake
+spec:
+  params:
+    - name: commitid
+  workspaces:
+    - name: source
+  steps:
+    - name: helm-bake
+      image: alpine/helm:latest
+      workingDir: "$(workspaces.source.path)"
+      script: |
+        #!/bin/sh
+        helm template cicd-sample-app .
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cicd-sample-task-helm-deploy
+spec:
+  params:
+    - name: commitid
+  workspaces:
+    - name: source
+  steps:
+    - name: helm-deploy
+      image: alpine/helm:latest
+      workingDir: "$(workspaces.source.path)"
+      script: |
+        #!/bin/sh
+        helm upgrade --install cicd-sample-app -n default .
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cicd-sample-task-helm-wait
+spec:
+  params:
+    - name: commitid
+  workspaces:
+    - name: source
+  steps:
+    - name: helm-wait
+      image: alpine/helm:latest
+      workingDir: "$(workspaces.source.path)"
+      script: |
+        #!/bin/sh
+        sleep 30
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cicd-sample-task-helm-destroy
+spec:
+  params:
+    - name: commitid
+  workspaces:
+    - name: source
+  steps:
+    - name: helm-destroy
+      image: alpine/helm:latest
+      workingDir: "$(workspaces.source.path)"
+      script: |
+        #!/bin/sh
+        helm uninstall -n default cicd-sample-app

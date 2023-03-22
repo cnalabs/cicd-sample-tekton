@@ -1,0 +1,70 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: cicd-sample-pipeline
+spec:
+  workspaces:
+    - name: shared-data
+      description: ""
+    - name: git-creds
+      description: ""
+  params:
+    - name: git-url
+      type: string
+      description: Git Repository URL
+    - name: git-revision
+      type: string
+      description: Git Repository Revision
+  tasks:
+    - name: checkout
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: "$(params.git-url)"
+        - name: revision
+          value: "$(params.git-revision)"
+      workspaces:
+        - name: output
+          workspace: shared-data
+    - name: helm-bake
+      runAfter: ["checkout"]
+      taskRef:
+        name: cicd-sample-task-helm-bake
+      params:
+        - name: commitid
+          value: "$(tasks.checkout.results.commit)"
+      workspaces:
+        - name: source
+          workspace: shared-data
+    - name: helm-deploy
+      runAfter: ["helm-bake"]
+      taskRef:
+        name: cicd-sample-task-helm-deploy
+      params:
+        - name: commitid
+          value: "$(tasks.checkout.results.commit)"
+      workspaces:
+        - name: source
+          workspace: shared-data
+    - name: helm-wait
+      runAfter: ["helm-deploy"]
+      taskRef:
+        name: cicd-sample-task-helm-wait
+      params:
+        - name: commitid
+          value: "$(tasks.checkout.results.commit)"
+      workspaces:
+        - name: source
+          workspace: shared-data
+    - name: helm-destroy
+      runAfter: ["helm-wait"]
+      taskRef:
+        name: cicd-sample-task-helm-destroy
+      params:
+        - name: commitid
+          value: "$(tasks.checkout.results.commit)"
+      workspaces:
+        - name: source
+          workspace: shared-data
+---
